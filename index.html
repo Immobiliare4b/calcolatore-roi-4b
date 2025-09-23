@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Calcolatore ROI Netto • Locali Commerciali</title>
+<meta name="color-scheme" content="dark">
+<style>
+:root{--accent:#EE7F22;--bg:#444544;--card:#2f3030;--muted:#d1d3d4;--border:#3b3c3c}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:var(--bg);color:#f7f7f7;
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Segoe UI",Roboto,Arial,sans-serif;}
+header{padding:18px 16px;border-bottom:1px solid var(--border);text-align:center;background:#2f3030;position:sticky;top:0;z-index:5}
+h1{margin:0;font-size:18px;letter-spacing:.2px}
+.sub{margin-top:6px;font-size:12px;color:#cfd1d2;letter-spacing:.3px;text-transform:uppercase}
+.container{max-width:1100px;margin:0 auto;padding:14px}
+.grid{display:grid;grid-template-columns:1fr;gap:14px}
+@media(min-width: 980px){ .grid{grid-template-columns:1.1fr 0.9fr} }
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px}
+.card h2{margin:2px 0 10px 0;font-size:15px}
+label{font-size:13px;color:var(--muted);display:block;margin-bottom:6px}
+input[type="number"], select{width:100%;background:#1f2020;color:#fff;border:1px solid var(--border);
+  border-radius:12px;padding:12px 12px;font-size:16px}
+.row{display:grid;grid-template-columns:1fr;gap:10px}
+@media(min-width: 700px){ .row.two{grid-template-columns:1fr 1fr} }
+.kpi{display:grid;grid-template-columns:1fr;gap:10px}
+@media(min-width: 700px){ .kpi{grid-template-columns:repeat(3,1fr)} }
+.k{background:#1f2020;border:1px solid var(--border);border-radius:12px;padding:12px}
+.k .lab{font-size:12px;color:var(--muted)}
+.k .val{font-size:22px;font-weight:900;margin-top:4px}
+.code{background:#1f2020;border:1px solid var(--border);border-radius:10px;padding:10px;font-size:13px;white-space:pre-wrap;color:#eaeaea}
+.small{font-size:12px;color:var(--muted)}
+.btn{border:0;border-radius:10px;padding:10px 12px;background:#EE7F22;color:#111;font-weight:700;cursor:pointer}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btn-ghost{background:#1f2020;border:1px solid var(--border);color:#fff}
+</style>
+</head>
+<body>
+<header>
+  <h1>Calcolatore ROI Netto • Locali Commerciali</h1>
+  <div class="sub">powered by IMMOBILIARE 4B</div>
+</header>
+
+<div class="container">
+  <div class="grid">
+    <div class="card">
+      <h2>1) Investimento e redditi</h2>
+      <div class="row two">
+        <div><label>Prezzo d'acquisto (€)</label><input type="number" id="prezzo" value="0" min="0" step="1000"></div>
+        <div><label>Costi di acquisto (notaio, imposte, ecc.) (€)</label><input type="number" id="costiAcq" value="0" min="0" step="500"></div>
+      </div>
+      <div class="row two">
+        <div><label>Ristrutturazione / CAPEX iniziale (€)</label><input type="number" id="capex" value="0" min="0" step="500"></div>
+        <div><label>Canone annuo lordo atteso (€)</label><input type="number" id="canone" value="0" min="0" step="500"></div>
+      </div>
+      <div class="row two">
+        <div><label>Orizzonte (anni)</label><input type="number" id="anni" value="0" min="0" step="1"></div>
+        <div><label class="small">&nbsp;</label><div class="small">Modello semplificato: nessuno sfitto, nessuna manutenzione/assicurazione.</div></div>
+      </div>
+
+      <div class="card" style="margin-top:12px">
+        <h2>2) Costi ricorrenti (annui)</h2>
+        <div class="row two">
+          <div><label>Spese condominiali/gestione NON recuperabili (€)</label><input type="number" id="nonRec" value="0" min="0" step="100"></div>
+          <div><label>IMU (€)</label><input type="number" id="imu" value="0" min="0" step="100"></div>
+        </div>
+        <div class="row two">
+          <div><label>Imposta di registro / imposte contrattuali (€)</label><input type="number" id="registro" value="0" min="0" step="50"></div>
+          <div><label class="small">&nbsp;</label><div class="small">Le spese qui incidono solo sul flusso di cassa.</div></div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:12px">
+        <h2>3) IRPEF 2025 (scaglioni progressivi)</h2>
+        <div class="row two">
+          <div>
+            <label>Base di calcolo IRPEF</label>
+            <select id="baseIrpef">
+              <option value="solo_canone" selected>Solo canone incassato</option>
+              <option value="canone_piu_extra">Canone + altri redditi</option>
+            </select>
+          </div>
+          <div>
+            <label>Altri redditi (€) <span class="small">(stipendio/altro, opzionale)</span></label>
+            <input type="number" id="extra" value="0" min="0" step="500">
+          </div>
+        </div>
+        <div class="small">Aliquote 2025: 23% fino a 28.000 € • 35% da 28.000 a 50.000 € • 43% oltre 50.000 €.</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Risultati</h2>
+      <div class="kpi">
+        <div class="k"><div class="lab">Investimento totale</div><div class="val" id="kInvest">—</div></div>
+        <div class="k"><div class="lab">ROI lordo</div><div class="val" id="kRoiLordo">—</div></div>
+        <div class="k"><div class="lab">ROI netto</div><div class="val" id="kRoiNetto">—</div></div>
+      </div>
+      <div class="kpi" style="margin-top:10px">
+        <div class="k"><div class="lab">Flusso di cassa netto / anno</div><div class="val" id="kCFNetto">—</div></div>
+        <div class="k"><div class="lab">Rientro investimento (anni)</div><div class="val" id="kPayback">—</div></div>
+        <div class="k"><div class="lab">Aliquota effettiva sulla base</div><div class="val" id="kEffRate">—</div></div>
+      </div>
+
+      <div class="toolbar">
+        <button id="btnReset" class="btn">Reimposta campi</button>
+        <button id="btnPDF" class="btn btn-ghost">Stampa / PDF</button>
+        <button id="btnLink" class="btn btn-ghost">Copia link con valori</button>
+      </div>
+
+      <h2>Scaglioni IRPEF applicati</h2>
+      <div class="code" id="irpefDetail">—</div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  function euro(v){ return new Intl.NumberFormat('it-IT',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(v||0); }
+  function el(id){ return document.getElementById(id); }
+
+  function irpefProgressiva2025(base){
+    var residuo = base, imposta = 0, dettaglio = [];
+    var scaglioni = [
+      {limite:28000, aliquota:0.23},
+      {limite:50000, aliquota:0.35},
+      {limite:Infinity, aliquota:0.43}
+    ];
+    var precedente = 0;
+    for (var i=0;i<scaglioni.length;i++){
+      var s = scaglioni[i];
+      var imponibile = Math.max(0, Math.min(residuo, s.limite - precedente));
+      if(imponibile>0){
+        var imp = imponibile * s.aliquota;
+        imposta += imp;
+        dettaglio.push(euro(imponibile) + ' × ' + Math.round(s.aliquota*100) + '% = ' + euro(imp));
+        residuo -= imponibile;
+        precedente = s.limite;
+      }
+    }
+    return {imposta:imposta, eff:(base>0?(imposta/base*100):0), dettaglio:dettaglio};
+  }
+
+  function params(){
+    var q = new URLSearchParams();
+    ['prezzo','costiAcq','capex','canone','anni','nonRec','imu','registro','baseIrpef','extra']
+      .forEach(function(id){ q.set(id, el(id).value || 0); });
+    return q;
+  }
+
+  function caricaDaURL(){
+    var q = new URLSearchParams(location.search);
+    if(q.toString()==='') return;
+    ['prezzo','costiAcq','capex','canone','anni','nonRec','imu','registro','baseIrpef','extra'].forEach(function(k){
+      var v = q.get(k); if(v!==null){ el(k).value = v; }
+    });
+  }
+
+  function calcola(){
+    var prezzo=+el('prezzo').value||0, costiAcq=+el('costiAcq').value||0, capex=+el('capex').value||0;
+    var canone=+el('canone').value||0, anni=+el('anni').value||0;
+    var nonRec=+el('nonRec').value||0, imu=+el('imu').value||0, registro=+el('registro').value||0;
+    var baseIrpef=el('baseIrpef').value, extra=+el('extra').value||0;
+
+    var investimento=prezzo+costiAcq+capex;
+    var canoneInc=canone;
+    var costiCassa=nonRec+imu+registro;
+    var base=canoneInc; if(baseIrpef==='canone_piu_extra') base+=extra;
+
+    var irpef=irpefProgressiva2025(base);
+    var quotaCanone=base>0?(canoneInc/base):0;
+    var irpefCanone=irpef.imposta*quotaCanone;
+
+    var flussoNetto=canoneInc-costiCassa-irpefCanone;
+    var roiLordo=investimento>0?(canoneInc/investimento*100):0;
+    var roiNetto=investimento>0?(flussoNetto/investimento*100):0;
+    var rientro=(flussoNetto>0)?(investimento/flussoNetto):Infinity;
+
+    el('kInvest').textContent= investimento>0 ? euro(investimento) : '—';
+    el('kRoiLordo').textContent= investimento>0 ? roiLordo.toFixed(2)+'%' : '—';
+    el('kRoiNetto').textContent= investimento>0 ? roiNetto.toFixed(2)+'%' : '—';
+    el('kCFNetto').textContent= (canone>0 || costiCassa>0 || irpefCanone>0) ? euro(flussoNetto) : '—';
+    el('kPayback').textContent= (isFinite(rientro) && rientro>0) ? rientro.toFixed(1) : '—';
+    el('kEffRate').textContent= (base>0) ? irpef.eff.toFixed(2)+'%' : '—';
+    el('irpefDetail').textContent= (base>0) ? irpef.dettaglio.join('\n') : '—';
+  }
+
+  function resetCampi(){
+    ['prezzo','costiAcq','capex','canone','anni','nonRec','imu','registro','extra'].forEach(function(k){ el(k).value = 0; });
+    el('baseIrpef').value = 'solo_canone';
+    history.replaceState({},'',location.pathname);
+    calcola();
+  }
+
+  function copiaLink(){
+    var url = location.origin + location.pathname + '?' + params().toString();
+    navigator.clipboard.writeText(url).then(function(){ alert('Link copiato.'); });
+  }
+
+  document.addEventListener('input',function(e){ if(e.target.matches('input,select')) calcola(); }, {passive:true});
+  document.getElementById('btnPDF').addEventListener('click',function(){ window.print(); });
+  document.getElementById('btnReset').addEventListener('click',resetCampi);
+  document.getElementById('btnLink').addEventListener('click',copiaLink);
+
+  caricaDaURL();
+  calcola();
+})();
+</script>
+</body>
+</html>
