@@ -33,7 +33,20 @@ input[type="number"], select{width:100%;background:#1f2020;color:#fff;border:1px
 .btn{border:0;border-radius:10px;padding:10px 12px;background:#EE7F22;color:#111;font-weight:700;cursor:pointer}
 .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
 .btn-ghost{background:#1f2020;border:1px solid var(--border);color:#fff}
-.footer{margin:32px 0 8px;text-align:center;color:#9ea1a2;font-size:12px}
+
+/* Tooltip */
+.tip{display:inline-flex;align-items:center;gap:6px}
+.info{display:inline-block;width:18px;height:18px;line-height:18px;text-align:center;border-radius:50%;
+  border:1px solid var(--border);color:#fff;font-size:12px;cursor:pointer;user-select:none}
+.tooltip{position:relative;display:inline-block}
+.tooltip .bubble{
+  visibility:hidden;opacity:0;transition:opacity .15s ease;
+  position:absolute;left:0;top:26px;z-index:10;
+  background:#1f2020;border:1px solid var(--border);color:#eaeaea;
+  font-size:12px;border-radius:8px;padding:10px;max-width:320px;min-width:220px;
+  box-shadow:0 6px 16px rgba(0,0,0,.35)
+}
+.tooltip.show .bubble{visibility:visible;opacity:1}
 </style>
 </head>
 <body>
@@ -47,8 +60,8 @@ input[type="number"], select{width:100%;background:#1f2020;color:#fff;border:1px
     <div class="card">
       <h2>1) Investimento e redditi</h2>
       <div class="row two">
-        <div><label>Prezzo d'acquisto (€)</label><input type="number" id="prezzo" value="0" min="0" step="1000"></div>
-        <div><label>Costi di acquisto (notaio, imposte, ecc.) (€)</label><input type="number" id="costiAcq" value="0" min="0" step="500"></div>
+        <div><label>Prezzo d'acquisto dell’immobile (€)</label><input type="number" id="prezzo" value="0" min="0" step="1000"></div>
+        <div><label>Costi di acquisto iniziali (€) <span class="small">(notaio, imposte, ecc.)</span></label><input type="number" id="costiAcq" value="0" min="0" step="500"></div>
       </div>
       <div class="row two">
         <div><label>Ristrutturazione / CAPEX iniziale (€)</label><input type="number" id="capex" value="0" min="0" step="500"></div>
@@ -88,10 +101,35 @@ input[type="number"], select{width:100%;background:#1f2020;color:#fff;border:1px
 
     <div class="card">
       <h2>Risultati</h2>
+
+      <div class="row two" style="margin-bottom:8px">
+        <div>
+          <label class="tip">
+            Denominatore ROI
+            <span class="tooltip" id="tipRoi">
+              <span class="info">ⓘ</span>
+              <span class="bubble">
+                <b>ROI su prezzo:</b> usa solo il prezzo dell’immobile come base (più “commerciale”).<br><br>
+                <b>ROI su capitale investito:</b> include prezzo + costi + CAPEX (più “finanziario”).<br><br>
+                Il <b>rientro investimento</b> è sempre calcolato sul capitale investito totale.
+              </span>
+            </span>
+          </label>
+          <select id="roiDenom">
+            <option value="prezzo" selected>Prezzo immobile</option>
+            <option value="investito">Capitale investito (prezzo+costi+CAPEX)</option>
+          </select>
+        </div>
+        <div>
+          <label class="small">&nbsp;</label>
+          <div class="small">Il <b>rientro investimento</b> usa sempre il capitale investito totale.</div>
+        </div>
+      </div>
+
       <div class="kpi">
-        <div class="k"><div class="lab">Investimento totale</div><div class="val" id="kInvest">—</div></div>
-        <div class="k"><div class="lab">ROI lordo</div><div class="val" id="kRoiLordo">—</div></div>
-        <div class="k"><div class="lab">ROI netto</div><div class="val" id="kRoiNetto">—</div></div>
+        <div class="k"><div class="lab">Investimento totale (prezzo + costi + CAPEX)</div><div class="val" id="kInvest">—</div></div>
+        <div class="k"><div class="lab" id="kRoiLordoLab">ROI lordo (su prezzo)</div><div class="val" id="kRoiLordo">—</div></div>
+        <div class="k"><div class="lab" id="kRoiNettoLab">ROI netto (su prezzo)</div><div class="val" id="kRoiNetto">—</div></div>
       </div>
       <div class="kpi" style="margin-top:10px">
         <div class="k"><div class="lab">Flusso di cassa netto / anno</div><div class="val" id="kCFNetto">—</div></div>
@@ -112,8 +150,6 @@ input[type="number"], select{width:100%;background:#1f2020;color:#fff;border:1px
       <div class="code" id="irpefDetail">—</div>
     </div>
   </div>
-
-  <div class="footer">v2025-09-24 • IRPEF incrementale + aliquota marginale</div>
 </div>
 
 <script>
@@ -121,9 +157,9 @@ input[type="number"], select{width:100%;background:#1f2020;color:#fff;border:1px
   function euro(v){ return new Intl.NumberFormat('it-IT',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(v||0); }
   function el(id){ return document.getElementById(id); }
 
-  // IRPEF progressiva 2025
+  // IRPEF progressiva 2025 (modello semplificato, senza detrazioni)
   function irpefProgressiva2025(base){
-    var residuo = base, imposta = 0, dettaglio = [];
+    var residuo = Math.max(0, base), imposta = 0, dettaglio = [];
     var scaglioni = [
       {limite:28000, aliquota:0.23},
       {limite:50000, aliquota:0.35},
@@ -140,13 +176,14 @@ input[type="number"], select{width:100%;background:#1f2020;color:#fff;border:1px
         residuo -= imponibile;
         precedente = s.limite;
       }
+      if(residuo<=0) break;
     }
     return {imposta:imposta, eff:(base>0?(imposta/base*100):0), dettaglio:dettaglio};
   }
 
   function params(){
     var q = new URLSearchParams();
-    ['prezzo','costiAcq','capex','canone','nonRec','imu','registro','baseIrpef','extra']
+    ['prezzo','costiAcq','capex','canone','nonRec','imu','registro','baseIrpef','extra','roiDenom']
       .forEach(function(id){ q.set(id, el(id).value || 0); });
     return q;
   }
@@ -154,7 +191,7 @@ input[type="number"], select{width:100%;background:#1f2020;color:#fff;border:1px
   function caricaDaURL(){
     var q = new URLSearchParams(location.search);
     if(q.toString()==='') return;
-    ['prezzo','costiAcq','capex','canone','nonRec','imu','registro','baseIrpef','extra'].forEach(function(k){
+    ['prezzo','costiAcq','capex','canone','nonRec','imu','registro','baseIrpef','extra','roiDenom'].forEach(function(k){
       var v = q.get(k); if(v!==null){ el(k).value = v; }
     });
   }
@@ -164,43 +201,54 @@ input[type="number"], select{width:100%;background:#1f2020;color:#fff;border:1px
     var canone=+el('canone').value||0;
     var nonRec=+el('nonRec').value||0, imu=+el('imu').value||0, registro=+el('registro').value||0;
     var baseIrpef=el('baseIrpef').value, extra=+el('extra').value||0;
+    var roiDenomSel=el('roiDenom').value;
 
-    var investimento=prezzo+costiAcq+capex;
-    var canoneInc=canone;
-    var costiCassa=nonRec+imu+registro;
+    var investimentoTot = prezzo + costiAcq + capex; // per PAYBACK
+    var denominatoreROI = (roiDenomSel==='prezzo') ? prezzo : investimentoTot;
 
-    // Base IRPEF totale e calcolo incrementale
-    var base = canoneInc + (baseIrpef==='canone_piu_extra' ? extra : 0);
+    var costiCassa = nonRec + imu + registro;
+
+    // IRPEF incrementale corretta
+    var base = canone + (baseIrpef==='canone_piu_extra' ? extra : 0);
     var irpefTot  = irpefProgressiva2025(base);
     var irpefSoloExtra = irpefProgressiva2025(baseIrpef==='canone_piu_extra' ? extra : 0);
-
-    // IRPEF attribuibile al canone = differenza
     var irpefCanone = Math.max(0, irpefTot.imposta - irpefSoloExtra.imposta);
 
-    // Aliquota marginale sul canone
-    var margRate = (canoneInc>0) ? (irpefCanone / canoneInc * 100) : 0;
+    var flussoNetto = canone - costiCassa - irpefCanone;
 
-    var flussoNetto=canoneInc-costiCassa-irpefCanone;
-    var roiLordo=investimento>0?(canoneInc/investimento*100):0;
-    var roiNetto=investimento>0?(flussoNetto/investimento*100):0;
-    var rientro=(flussoNetto>0)?(investimento/flussoNetto):Infinity;
+    // KPI
+    var roiLordo = (denominatoreROI>0) ? (canone/denominatoreROI*100) : NaN;
+    var roiNetto = (denominatoreROI>0) ? (flussoNetto/denominatoreROI*100) : NaN;
+    var payback  = (flussoNetto>0) ? (investimentoTot/flussoNetto) : Infinity;
+    var margRate = (canone>0) ? (irpefCanone/canone*100) : NaN;
 
-    el('kInvest').textContent= investimento>0 ? euro(investimento) : '—';
-    el('kRoiLordo').textContent= investimento>0 ? roiLordo.toFixed(2)+'%' : '—';
-    el('kRoiNetto').textContent= investimento>0 ? roiNetto.toFixed(2)+'%' : '—';
-    el('kCFNetto').textContent= (canone>0 || costiCassa>0 || irpefCanone>0) ? euro(flussoNetto) : '—';
-    el('kPayback').textContent= (isFinite(rientro) && rientro>0) ? rientro.toFixed(1) : '—';
+    // Label dinamiche per i ROI
+    el('kRoiLordoLab').textContent = (roiDenomSel==='prezzo')
+      ? 'ROI lordo (su prezzo)'
+      : 'ROI lordo (su capitale investito)';
+    el('kRoiNettoLab').textContent = (roiDenomSel==='prezzo')
+      ? 'ROI netto (su prezzo)'
+      : 'ROI netto (su capitale investito)';
 
-    // Effettiva e marginale
-    el('kEffRate').textContent= (base>0) ? ( (irpefTot.imposta/base*100).toFixed(2)+'%' ) : '—';
-    el('kMargRate').textContent= (canoneInc>0) ? margRate.toFixed(2)+'%' : '—';
+    // Render KPI
+    el('kInvest').textContent = (investimentoTot>0) ? euro(investimentoTot) : '—';
+    el('kRoiLordo').textContent = isFinite(roiLordo) ? roiLordo.toFixed(2)+'%' : '—';
+    el('kRoiNetto').textContent = isFinite(roiNetto) ? roiNetto.toFixed(2)+'%' : '—';
+    el('kCFNetto').textContent = (canone>0 || costiCassa>0 || irpefCanone>0) ? euro(flussoNetto) : '—';
+    el('kPayback').textContent = (isFinite(payback) && payback>0) ? payback.toFixed(1) : '—';
+    el('kEffRate').textContent = (base>0) ? ( (irpefTot.imposta/base*100).toFixed(2)+'%' ) : '—';
+    el('kMargRate').textContent = isFinite(margRate) ? margRate.toFixed(2)+'%' : '—';
 
-    el('irpefDetail').textContent= (base>0) ? irpefTot.dettaglio.join('\n') : '—';
+    // Dettaglio scaglioni IRPEF sulla base totale
+    el('irpefDetail').textContent = (base>0)
+      ? (irpefTot.dettaglio.join('\n') + '\n—\nIRPEF attribuibile al canone: ' + euro(irpefCanone))
+      : '—';
   }
 
   function resetCampi(){
     ['prezzo','costiAcq','capex','canone','nonRec','imu','registro','extra'].forEach(function(k){ el(k).value = 0; });
     el('baseIrpef').value = 'solo_canone';
+    el('roiDenom').value = 'prezzo';
     history.replaceState({},'',location.pathname);
     calcola();
   }
@@ -209,6 +257,18 @@ input[type="number"], select{width:100%;background:#1f2020;color:#fff;border:1px
     var url = location.origin + location.pathname + '?' + params().toString();
     navigator.clipboard.writeText(url).then(function(){ alert('Link copiato.'); });
   }
+
+  // Tooltip toggle (tap mobile / click desktop)
+  (function(){
+    var t = document.getElementById('tipRoi');
+    if(!t) return;
+    var handler = function(e){
+      e.stopPropagation();
+      t.classList.toggle('show');
+    };
+    t.addEventListener('click', handler);
+    document.addEventListener('click', function(){ t.classList.remove('show'); });
+  })();
 
   document.addEventListener('input',function(e){ if(e.target.matches('input,select')) calcola(); }, {passive:true});
   document.getElementById('btnPDF').addEventListener('click',function(){ window.print(); });
