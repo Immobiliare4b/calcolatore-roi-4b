@@ -33,6 +33,7 @@ input[type="number"], select{width:100%;background:#1f2020;color:#fff;border:1px
 .btn{border:0;border-radius:10px;padding:10px 12px;background:#EE7F22;color:#111;font-weight:700;cursor:pointer}
 .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
 .btn-ghost{background:#1f2020;border:1px solid var(--border);color:#fff}
+.footer{margin:32px 0 8px;text-align:center;color:#9ea1a2;font-size:12px}
 </style>
 </head>
 <body>
@@ -52,10 +53,6 @@ input[type="number"], select{width:100%;background:#1f2020;color:#fff;border:1px
       <div class="row two">
         <div><label>Ristrutturazione / CAPEX iniziale (€)</label><input type="number" id="capex" value="0" min="0" step="500"></div>
         <div><label>Canone annuo lordo atteso (€)</label><input type="number" id="canone" value="0" min="0" step="500"></div>
-      </div>
-      <div class="row two">
-        <div><label>Orizzonte (anni)</label><input type="number" id="anni" value="0" min="0" step="1"></div>
-        <div><label class="small">&nbsp;</label><div class="small">Modello semplificato: nessuno sfitto, nessuna manutenzione/assicurazione.</div></div>
       </div>
 
       <div class="card" style="margin-top:12px">
@@ -112,6 +109,8 @@ input[type="number"], select{width:100%;background:#1f2020;color:#fff;border:1px
       <div class="code" id="irpefDetail">—</div>
     </div>
   </div>
+
+  <div class="footer">v2025-09-24-REM-ORIZZONTE</div>
 </div>
 
 <script>
@@ -143,7 +142,7 @@ input[type="number"], select{width:100%;background:#1f2020;color:#fff;border:1px
 
   function params(){
     var q = new URLSearchParams();
-    ['prezzo','costiAcq','capex','canone','anni','nonRec','imu','registro','baseIrpef','extra']
+    ['prezzo','costiAcq','capex','canone','nonRec','imu','registro','baseIrpef','extra']
       .forEach(function(id){ q.set(id, el(id).value || 0); });
     return q;
   }
@@ -151,14 +150,14 @@ input[type="number"], select{width:100%;background:#1f2020;color:#fff;border:1px
   function caricaDaURL(){
     var q = new URLSearchParams(location.search);
     if(q.toString()==='') return;
-    ['prezzo','costiAcq','capex','canone','anni','nonRec','imu','registro','baseIrpef','extra'].forEach(function(k){
+    ['prezzo','costiAcq','capex','canone','nonRec','imu','registro','baseIrpef','extra'].forEach(function(k){
       var v = q.get(k); if(v!==null){ el(k).value = v; }
     });
   }
 
   function calcola(){
     var prezzo=+el('prezzo').value||0, costiAcq=+el('costiAcq').value||0, capex=+el('capex').value||0;
-    var canone=+el('canone').value||0, anni=+el('anni').value||0;
+    var canone=+el('canone').value||0;
     var nonRec=+el('nonRec').value||0, imu=+el('imu').value||0, registro=+el('registro').value||0;
     var baseIrpef=el('baseIrpef').value, extra=+el('extra').value||0;
 
@@ -186,7 +185,7 @@ input[type="number"], select{width:100%;background:#1f2020;color:#fff;border:1px
   }
 
   function resetCampi(){
-    ['prezzo','costiAcq','capex','canone','anni','nonRec','imu','registro','extra'].forEach(function(k){ el(k).value = 0; });
+    ['prezzo','costiAcq','capex','canone','nonRec','imu','registro','extra'].forEach(function(k){ el(k).value = 0; });
     el('baseIrpef').value = 'solo_canone';
     history.replaceState({},'',location.pathname);
     calcola();
