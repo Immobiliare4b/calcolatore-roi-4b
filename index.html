@@ -98,6 +98,9 @@ input[type="number"], select{width:100%;background:#1f2020;color:#fff;border:1px
         <div class="k"><div class="lab">Rientro investimento (anni)</div><div class="val" id="kPayback">—</div></div>
         <div class="k"><div class="lab">Aliquota effettiva sulla base</div><div class="val" id="kEffRate">—</div></div>
       </div>
+      <div class="kpi" style="margin-top:10px">
+        <div class="k"><div class="lab">Aliquota marginale sul canone</div><div class="val" id="kMargRate">—</div></div>
+      </div>
 
       <div class="toolbar">
         <button id="btnReset" class="btn">Reimposta campi</button>
@@ -110,7 +113,7 @@ input[type="number"], select{width:100%;background:#1f2020;color:#fff;border:1px
     </div>
   </div>
 
-  <div class="footer">v2025-09-24-REM-ORIZZONTE</div>
+  <div class="footer">v2025-09-24 • IRPEF incrementale + aliquota marginale</div>
 </div>
 
 <script>
@@ -118,6 +121,7 @@ input[type="number"], select{width:100%;background:#1f2020;color:#fff;border:1px
   function euro(v){ return new Intl.NumberFormat('it-IT',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(v||0); }
   function el(id){ return document.getElementById(id); }
 
+  // IRPEF progressiva 2025
   function irpefProgressiva2025(base){
     var residuo = base, imposta = 0, dettaglio = [];
     var scaglioni = [
@@ -164,11 +168,17 @@ input[type="number"], select{width:100%;background:#1f2020;color:#fff;border:1px
     var investimento=prezzo+costiAcq+capex;
     var canoneInc=canone;
     var costiCassa=nonRec+imu+registro;
-    var base=canoneInc; if(baseIrpef==='canone_piu_extra') base+=extra;
 
-    var irpef=irpefProgressiva2025(base);
-    var quotaCanone=base>0?(canoneInc/base):0;
-    var irpefCanone=irpef.imposta*quotaCanone;
+    // Base IRPEF totale e calcolo incrementale
+    var base = canoneInc + (baseIrpef==='canone_piu_extra' ? extra : 0);
+    var irpefTot  = irpefProgressiva2025(base);
+    var irpefSoloExtra = irpefProgressiva2025(baseIrpef==='canone_piu_extra' ? extra : 0);
+
+    // IRPEF attribuibile al canone = differenza
+    var irpefCanone = Math.max(0, irpefTot.imposta - irpefSoloExtra.imposta);
+
+    // Aliquota marginale sul canone
+    var margRate = (canoneInc>0) ? (irpefCanone / canoneInc * 100) : 0;
 
     var flussoNetto=canoneInc-costiCassa-irpefCanone;
     var roiLordo=investimento>0?(canoneInc/investimento*100):0;
@@ -180,8 +190,12 @@ input[type="number"], select{width:100%;background:#1f2020;color:#fff;border:1px
     el('kRoiNetto').textContent= investimento>0 ? roiNetto.toFixed(2)+'%' : '—';
     el('kCFNetto').textContent= (canone>0 || costiCassa>0 || irpefCanone>0) ? euro(flussoNetto) : '—';
     el('kPayback').textContent= (isFinite(rientro) && rientro>0) ? rientro.toFixed(1) : '—';
-    el('kEffRate').textContent= (base>0) ? irpef.eff.toFixed(2)+'%' : '—';
-    el('irpefDetail').textContent= (base>0) ? irpef.dettaglio.join('\n') : '—';
+
+    // Effettiva e marginale
+    el('kEffRate').textContent= (base>0) ? ( (irpefTot.imposta/base*100).toFixed(2)+'%' ) : '—';
+    el('kMargRate').textContent= (canoneInc>0) ? margRate.toFixed(2)+'%' : '—';
+
+    el('irpefDetail').textContent= (base>0) ? irpefTot.dettaglio.join('\n') : '—';
   }
 
   function resetCampi(){
